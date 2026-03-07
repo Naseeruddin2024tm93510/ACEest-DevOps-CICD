@@ -1,26 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Dockerfile — ACEest Fitness & Gym Management
-# Multi-stage, non-root, minimal attack surface
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ── Stage 1: Build / dependency installation ──────────────────────────────────
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim
 
 # Prevent .pyc files and enable unbuffered stdout (better for container logs)
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-WORKDIR /build
-
-# Install dependencies into an isolated prefix so we can copy them cleanly
-COPY requirements.txt .
-RUN pip install --upgrade pip --quiet && \
-    pip install --prefix=/install --no-cache-dir -r requirements.txt
-
-
-# ── Stage 2: Runtime image ────────────────────────────────────────────────────
-FROM python:3.12-slim AS runtime
-
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=5000
@@ -31,13 +15,14 @@ RUN addgroup --system appgroup && \
 
 WORKDIR /app
 
-# Copy installed packages from the builder stage
-COPY --from=builder /install /usr/local
+# Install dependencies (as root, before switching user)
+COPY requirements.txt .
+RUN pip install --upgrade pip --quiet && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application source and test suite
-COPY app.py           .
-COPY requirements.txt .
-COPY test_app.py      .
+COPY app.py       .
+COPY test_app.py  .
 
 # Switch to non-root user
 USER appuser
@@ -49,6 +34,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"
 
-# Run the application with Gunicorn (production-grade WSGI server)
-# Falls back gracefully if gunicorn is absent (development mode)
+# Start the Flask development server
 CMD ["python", "-m", "flask", "--app", "app", "run", "--host", "0.0.0.0", "--port", "5000"]

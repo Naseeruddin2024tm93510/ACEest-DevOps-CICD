@@ -106,12 +106,9 @@ jobs:
       - name: Run Pytest inside the Docker container
         run: |
           docker run --rm \
-            --entrypoint "" \
+            --entrypoint sh \
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-            python -m pytest test_app.py -v \
-              --tb=short \
-              --cov=app \
-              --cov-report=term-missing
+            -c "python -m pytest test_app.py -v --tb=short --cov=app --cov-report=term-missing"
 
       - name: Upload coverage report (artifact)
         if: always()
