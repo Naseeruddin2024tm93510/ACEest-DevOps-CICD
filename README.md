@@ -310,7 +310,7 @@ The Jenkins pipeline polls SCM every five minutes (`H/5 * * * *`) as a fallback.
 
 ## Author
 
-**[Your Name]** — M.Tech Student, Introduction to DevOps (CSIZG514/SEZG514)
+**Shaik Naseeruddin, 2024tm93510** — M.Tech Student, Introduction to DevOps (CSIZG514/SEZG514)
 
 ---
 
