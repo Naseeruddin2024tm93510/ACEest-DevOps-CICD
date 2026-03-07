@@ -314,4 +314,3 @@ The Jenkins pipeline polls SCM every five minutes (`H/5 * * * *`) as a fallback.
 
 ---
 
-*"Automate everything, test everything, ship with confidence."*
