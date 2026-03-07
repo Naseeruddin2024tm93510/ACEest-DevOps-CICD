@@ -98,19 +98,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Rebuild the image so we have it locally for `docker run`
+      # Use plain docker build so the image lands in the local daemon for docker run
       - name: Build Docker image for testing
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push:    false
-          load:    true             # load into local Docker daemon
-          tags:    ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha
-          cache-to:   type=gha,mode=max
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
 
       - name: Run Pytest inside the Docker container
         run: |
