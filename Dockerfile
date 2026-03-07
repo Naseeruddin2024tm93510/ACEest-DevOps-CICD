@@ -34,9 +34,10 @@ WORKDIR /app
 # Copy installed packages from the builder stage
 COPY --from=builder /install /usr/local
 
-# Copy application source
-COPY app.py          .
+# Copy application source and test suite
+COPY app.py           .
 COPY requirements.txt .
+COPY test_app.py      .
 
 # Switch to non-root user
 USER appuser

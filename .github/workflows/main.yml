@@ -112,17 +112,15 @@ jobs:
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-      - name: Copy test file into container and run Pytest
+      - name: Run Pytest inside the Docker container
         run: |
           docker run --rm \
-            -v "${{ github.workspace }}/test_app.py:/app/test_app.py:ro" \
             --entrypoint "" \
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-            sh -c "pip install pytest pytest-cov --quiet && \
-                   pytest test_app.py -v \
-                          --tb=short \
-                          --cov=app \
-                          --cov-report=term-missing"
+            python -m pytest test_app.py -v \
+              --tb=short \
+              --cov=app \
+              --cov-report=term-missing
 
       - name: Upload coverage report (artifact)
         if: always()
