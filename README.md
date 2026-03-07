@@ -48,9 +48,9 @@ ACEest is a Flask REST API that allows gym staff to manage members, log workouts
 ## Project Structure
 
 ```
-Assignment-2/
+ACEest-DevOps-CICD/
 ├── app.py                        # Flask application (application factory pattern)
-├── test_app.py                   # Pytest test suite (40+ test cases)
+├── test_app.py                   # Pytest test suite (43 test cases)
 ├── requirements.txt              # Python dependencies
 ├── Dockerfile                    # Multi-stage, non-root Docker image
 ├── Jenkinsfile                   # Declarative Jenkins pipeline
@@ -74,8 +74,8 @@ Assignment-2/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<your-username>/aceest-fitness.git
-cd aceest-fitness
+git clone https://github.com/Naseeruddin2024tm93510/ACEest-DevOps-CICD.git
+cd ACEest-DevOps-CICD
 
 # 2. Create and activate a virtual environment
 python -m venv venv
@@ -83,28 +83,11 @@ python -m venv venv
 # Windows
 venv\Scripts\activate
 
-# macOS / Linux
-source venv/bin/activate
-
 # 3. Install dependencies
 pip install -r requirements.txt
 
 # 4. Run the development server
 flask --app app run --debug
-```
-
-The service will be available at **http://127.0.0.1:5000**.
-
-#### Quick API smoke test (curl)
-
-```bash
-curl http://127.0.0.1:5000/health
-# → {"status":"healthy"}
-
-curl -X POST http://127.0.0.1:5000/members \
-     -H "Content-Type: application/json" \
-     -d '{"name":"Alice","weight_kg":62,"program":"Fat Loss"}'
-# → {"id":1,"name":"Alice","calories":1364}
 ```
 
 ---
@@ -127,18 +110,8 @@ pytest test_app.py -v --cov=app --cov-report=term-missing
 ### Expected output
 
 ```
-collected 40 items
-
-test_app.py::TestHealthEndpoints::test_root_returns_200          PASSED
-test_app.py::TestHealthEndpoints::test_health_returns_200        PASSED
-test_app.py::TestMemberCreation::test_create_member_success      PASSED
-...
-test_app.py::TestMembership::test_expired_membership             PASSED
-
-============ 40 passed in 0.42s ============
+============================= 43 passed in 0.78s ==============================
 ```
-
-> **All tests use an isolated in-memory SQLite database** — no files are created on disk.
 
 ---
 
@@ -158,25 +131,14 @@ docker run -d --name aceest -p 5000:5000 aceest-fitness:latest
 
 The API is now accessible at **http://localhost:5000**.
 
-### Run tests inside the container
-
-```bash
-docker run --rm \
-  -v "$(pwd)/test_app.py:/app/test_app.py:ro" \
-  --entrypoint "" \
-  aceest-fitness:latest \
-  sh -c "pip install pytest pytest-cov -q && pytest test_app.py -v"
-```
-
 ### Docker image highlights
 
 | Design choice | Reason |
 |---|---|
 | `python:3.12-slim` base | Smaller attack surface than `python:3.12` full image |
-| **Multi-stage build** | Build-time tools never reach the runtime image |
+| **Multi-stage build** | Reduces final image size by using a separate builder stage |
 | **Non-root user** (`appuser`) | Prevents privilege escalation inside the container |
-| `HEALTHCHECK` instruction | Enables Docker / Kubernetes readiness probing |
-| `--no-cache-dir` in `pip install` | Reduces final image size |
+| `HEALTHCHECK` instruction | Enables Docker / orchestrators can probe readiness |
 
 ---
 
@@ -184,16 +146,12 @@ docker run --rm \
 
 File: `.github/workflows/main.yml`
 
-### Trigger
-
-Every `push` or `pull_request` to **any branch**.
-
 ### Jobs
 
 ```
 push / pull_request
-        │
-        ▼
+         │
+         ▼
 ┌───────────────────┐
 │  build-and-lint   │  (Job 1)
 │  ─────────────    │
@@ -201,32 +159,16 @@ push / pull_request
 │  • py_compile     │
 │  • import check   │
 └────────┬──────────┘
-         │ needs: build-and-lint
+         │
          ▼
-┌───────────────────┐
-│   docker-build    │  (Job 2)
-│  ─────────────    │
-│  • buildx setup   │
-│  • docker build   │
-│  • verify image   │
-└────────┬──────────┘
-         │ needs: docker-build
-         ▼
-┌───────────────────┐
-│ automated-tests   │  (Job 3)
-│  ─────────────    │
-│  • rebuild image  │
-│  • docker run     │
-│    pytest -v      │
-│  • upload cov     │
-└───────────────────┘
+┌───────────────────┐      ┌───────────────────┐
+│   docker-build    │      │  automated-tests  │
+│  ─────────────    │      │  ─────────────    │
+│  • buildx setup   │      │  • native pytest  │
+│  • docker build   │      │  • junit report   │
+│  • verify image   │      │  • upload cov     │
+└───────────────────┘      └───────────────────┘
 ```
-
-#### Key features
-
-- **Dependency chaining** (`needs:` keyword) — downstream jobs only run if upstream jobs pass.
-- **Docker layer caching** (`cache-from/cache-to: type=gha`) — dramatically speeds up repeated builds.
-- **Coverage artefact upload** — the `.coverage` file is preserved for 7 days.
 
 ---
 
@@ -236,13 +178,13 @@ File: `Jenkinsfile`
 
 ### Prerequisites on the Jenkins server
 
-1. Jenkins with the **Pipeline** plugin installed.
-2. Docker available on the Jenkins agent host.
-3. Python 3 available on the agent (`python3` in `PATH`).
+1. Port **8085** identified as the local Jenkins port.
+2. Initial Admin Password located at: `C:\ProgramData\Jenkins\.jenkins\secrets\initialAdminPassword`
+3. Docker and Python 3 available on the agent.
 
 ### Creating the Jenkins project
 
-1. Open Jenkins → **New Item** → name it `aceest-fitness` → select **Pipeline**.
+1. Open Jenkins → **New Item** → name it `ACEest-DevOps-CICD` → select **Pipeline**.
 2. Under **Pipeline** section, choose **Pipeline script from SCM**.
 3. Set SCM to **Git**, paste your repository URL.
 4. Set **Script Path** to `Jenkinsfile`.
@@ -258,10 +200,6 @@ File: `Jenkinsfile`
 | 4 | **Unit Tests (Pytest)** | Executes the full test suite; publishes JUnit XML report |
 | 5 | **Docker Build** | Builds the Docker image tagged with the build number |
 | 6 | **Docker Smoke Test** | Starts the container and hits `/health`; stops it afterwards |
-
-### Automatic triggers
-
-The Jenkins pipeline polls SCM every five minutes (`H/5 * * * *`) as a fallback. For instant triggers, configure a **GitHub webhook** pointing at `http://<jenkins-host>/github-webhook/`.
 
 ---
 
@@ -280,37 +218,17 @@ The Jenkins pipeline polls SCM every five minutes (`H/5 * * * *`) as a fallback.
 |---|---|---|
 | `GET` | `/members` | List all members |
 | `POST` | `/members` | Create a new member |
-| `GET` | `/members/{id}` | Get member by ID |
-| `PUT` | `/members/{id}` | Update member |
-| `DELETE` | `/members/{id}` | Delete member |
-
-### Workouts
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/members/{id}/workouts` | List all workouts for a member |
-| `POST` | `/members/{id}/workouts` | Add a workout session |
-
-### Progress
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/members/{id}/progress` | List weekly progress |
-| `POST` | `/members/{id}/progress` | Record weekly adherence |
 
 ### Fitness Calculators
 
-| Method | Path | Body | Description |
-|---|---|---|---|
-| `POST` | `/calculate-calories` | `{ weight_kg, program }` | Estimate daily calories |
-| `POST` | `/bmi` | `{ weight_kg, height_cm }` | Compute BMI + category |
-| `GET` | `/members/{id}/membership` | — | Check membership status |
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/calculate-calories` | Estimate daily calories |
+| `POST` | `/bmi` | Compute BMI + category |
+| `GET` | `/members/{id}/membership` | Check membership status |
 
 ---
 
 ## Author
 
 **Shaik Naseeruddin, 2024tm93510** — M.Tech Student, Introduction to DevOps (CSIZG514/SEZG514)
-
----
-
