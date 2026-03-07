@@ -1,0 +1,133 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/main.yml
+# ACEest Fitness & Gym — GitHub Actions CI/CD Pipeline
+# Triggered on every push and pull_request to any branch.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CI/CD Pipeline — ACEest Fitness & Gym
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  IMAGE_NAME: aceest-fitness
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 1: Build & Lint
+  # Validates Python syntax and imports without running the full test suite.
+  # ────────────────────────────────────────────────────────────────────────────
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint — check for syntax errors (py_compile)
+        run: |
+          python -m py_compile app.py
+          echo "✅  Syntax check passed for app.py"
+
+      - name: Lint — check for syntax errors (test suite)
+        run: |
+          python -m py_compile test_app.py
+          echo "✅  Syntax check passed for test_app.py"
+
+      - name: Verify Flask app imports cleanly
+        run: |
+          python -c "from app import create_app; app = create_app(':memory:'); print('Flask app imported successfully')"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 2: Docker Image Assembly
+  # Builds the Docker image to confirm the Dockerfile is valid.
+  # ────────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Image Assembly
+    runs-on: ubuntu-latest
+    needs: build-and-lint           # only run if lint passed
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push:    false            # we only build; push requires registry secrets
+          tags:    ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Verify image was created
+        run: |
+          docker images ${{ env.IMAGE_NAME }}
+          echo "✅  Docker image built successfully"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 3: Automated Testing inside the container
+  # Runs the full Pytest suite inside the Docker container.
+  # ────────────────────────────────────────────────────────────────────────────
+  automated-tests:
+    name: Automated Testing (Pytest in Docker)
+    runs-on: ubuntu-latest
+    needs: docker-build             # only run if image built successfully
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Rebuild the image so we have it locally for `docker run`
+      - name: Build Docker image for testing
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push:    false
+          load:    true             # load into local Docker daemon
+          tags:    ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to:   type=gha,mode=max
+
+      - name: Copy test file into container and run Pytest
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/test_app.py:/app/test_app.py:ro" \
+            --entrypoint "" \
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            sh -c "pip install pytest pytest-cov --quiet && \
+                   pytest test_app.py -v \
+                          --tb=short \
+                          --cov=app \
+                          --cov-report=term-missing"
+
+      - name: Upload coverage report (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-coverage-report
+          path: .coverage
+          retention-days: 7
