@@ -32,16 +32,16 @@ pipeline {
         // ── Stage 1: Checkout ──────────────────────────────────────────────
         stage('Checkout') {
             steps {
-                echo '📥  Cloning repository…'
+                echo 'Cloning repository…'
                 checkout scm
-                echo "✅  Checkout complete — ${env.GIT_COMMIT}"
+                echo "Checkout complete — ${env.GIT_COMMIT}"
             }
         }
 
         // ── Stage 2: Setup Python environment ─────────────────────────────
         stage('Setup Environment') {
             steps {
-                echo '🐍  Setting up Python virtual environment…'
+                echo 'Setting up Python virtual environment…'
                 sh """
                     ${PYTHON_CMD} -m venv venv
                     . venv/bin/activate
@@ -56,12 +56,12 @@ pipeline {
         // ── Stage 3: Lint (syntax verification) ───────────────────────────
         stage('Lint — Syntax Check') {
             steps {
-                echo '🔍  Checking Python syntax…'
+                echo 'Checking Python syntax…'
                 sh """
                     . venv/bin/activate
                     python -m py_compile app.py
                     python -m py_compile test_app.py
-                    echo "✅  No syntax errors found"
+                    echo "No syntax errors found"
                 """
             }
         }
@@ -69,7 +69,7 @@ pipeline {
         // ── Stage 4: Unit Tests ────────────────────────────────────────────
         stage('Unit Tests (Pytest)') {
             steps {
-                echo '🧪  Running Pytest test suite…'
+                echo 'Running Pytest test suite…'
                 sh """
                     . venv/bin/activate
                     pytest test_app.py -v \
@@ -93,7 +93,7 @@ pipeline {
         // ── Stage 5: Docker Build ──────────────────────────────────────────
         stage('Docker Build') {
             steps {
-                echo '🐳  Building Docker image…'
+                echo 'Building Docker image…'
                 sh """
                     docker build \
                         --tag  ${IMAGE_NAME}:${IMAGE_TAG} \
@@ -108,7 +108,7 @@ pipeline {
         // ── Stage 6: Docker Test (Smoke) ───────────────────────────────────
         stage('Docker Smoke Test') {
             steps {
-                echo '🚀  Running container smoke test…'
+                echo 'Running container smoke test…'
                 sh """
                     # Start container in background
                     docker run --rm -d \
@@ -121,8 +121,8 @@ pipeline {
 
                     # Hit the health endpoint
                     curl --fail --silent --max-time 10 http://localhost:5099/health \
-                        && echo "✅  Smoke test passed" \
-                        || (echo "❌  Smoke test FAILED"; exit 1)
+                        && echo "Smoke test passed" \
+                        || (echo "Smoke test FAILED"; exit 1)
 
                     # Stop the container
                     docker stop aceest-smoke-\${BUILD_NUMBER}
@@ -134,10 +134,10 @@ pipeline {
     // ── Post pipeline actions ──────────────────────────────────────────────
     post {
         success {
-            echo '🎉  Pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo '❌  Pipeline FAILED — check logs above for details.'
+            echo 'Pipeline FAILED — check logs above for details.'
         }
         always {
             // Clean up dangling Docker images to reclaim disk space
