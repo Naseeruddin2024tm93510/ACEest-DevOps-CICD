@@ -44,12 +44,12 @@ jobs:
       - name: Lint — check for syntax errors (py_compile)
         run: |
           python -m py_compile app.py
-          echo "✅  Syntax check passed for app.py"
+          echo "Syntax check passed for app.py"
 
       - name: Lint — check for syntax errors (test suite)
         run: |
           python -m py_compile test_app.py
-          echo "✅  Syntax check passed for test_app.py"
+          echo "Syntax check passed for test_app.py"
 
       - name: Verify Flask app imports cleanly
         run: |
@@ -82,7 +82,7 @@ jobs:
 
       - name: Verify image was created
         run: |
-          echo "✅  Docker image built successfully"
+          echo "Docker image built successfully"
 
   # ────────────────────────────────────────────────────────────────────────────
   # Job 3: Automated Testing
